@@ -9,8 +9,9 @@ import smtplib
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
-
+from datetime import datetime 
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 MAIL_USER = os.environ.get("MAIL_USER")
 MAIL_PASS = os.environ.get("MAIL_PASS")
 MAIL_TO = os.environ.get("MAIL_TO")
@@ -369,13 +370,73 @@ def gunun_dersi():
     state["toplam_ders"] = state.get("toplam_ders", 0) + 1
     save_state(state)
     return ders
+    def ai_detayli_ders(ders):
+    """Groq AI ile dersin detaylı 800+ kelimelik metnini üretir."""
+    if not GROQ_API_KEY:
+        return f"{ders['ozet']}\n\n{ders['uygulama']}"
+    
+    try:
+        from groq import Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        prompt = f"""
+Sen deneyimli bir Excel eğitmenisin. Aşağıdaki ders bilgilerini kullanarak, ÖĞRENCİYE HİTAPEN DETAYLI bir ders metni yaz.
+
+DERS BİLGİLERİ:
+- Başlık: {ders['baslik']}
+- Kısa Özet: {ders['ozet']}
+- Uygulama Görevi: {ders['uygulama']}
+
+ÇOK ÖNEMLİ KURALLAR:
+1. Metin EN AZ 800 kelime olmalı. Kısa yazmak yasak.
+2. "Sen" diliyle yaz, samimi ve öğretici ol.
+3. Adım adım anlat. Her adımı numaralandır.
+4. Bol örnek ver. Somut sayılar ve hücre adresleri kullan.
+5. Öğrencinin sık yapacağı hataları belirt.
+6. Konuyu gerçek iş hayatıyla ilişkilendir.
+
+ŞU FORMATTA YAZ:
+
+## 🎯 Bu Derste Ne Öğreneceksin?
+(2-3 paragraf. Konuyu tanıt. Neden önemli olduğunu açıkla.)
+
+## 📖 Detaylı Anlatım
+(En az 400 kelime. Konuyu adım adım, örneklerle, sabırla anlat. Her kavramı tek tek açıkla.)
+
+## 💻 Adım Adım Uygulama
+(Uygulama görevini çok detaylı anlat. Her adımı numaralandır. Hangi hücreye ne yazacağını belirt.)
+
+## ⚠️ Sık Yapılan 3 Hata
+(1. ... 2. ... 3. ...)
+
+## 💼 İş Hayatında Nasıl Kullanılır?
+(2-3 somut örnek. Satış müdürü olarak bu beceriyi nerede kullanacaksın?)
+
+## ✅ Kendini Test Et
+(3 soru sor. Cevaplarını altına yaz.)
+
+Türkçe yaz. Detaylı ol. Kısa kesme.
+"""
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="openai/gpt-oss-20b",
+            max_tokens=4000,
+        )
+        return chat.choices[0].message.content
+    except Exception as e:
+        print(f"AI hatası: {e}")
+        return f"{ders['ozet']}\n\n{ders['uygulama']}"
 
 # ============================================================
 # E-POSTA GÖNDER
 # ============================================================
 def excel_mail_gonder():
     tarih = datetime.now().strftime('%d.%m.%Y %A')
-    ders = gunun_dersi()
+        ders = gunun_dersi()
+        print("🤖 AI detaylı ders metni oluşturuyor... (30-60 saniye)")
+    detayli_metin = ai_detayli_ders(ders)
+    print("🤖 AI detaylı ders metni oluşturuyor... (30-60 saniye)")
+    detayli_metin = ai_detayli_ders(ders)
     
     # Video linkleri
     video_html = ""
@@ -394,9 +455,8 @@ def excel_mail_gonder():
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
             <h2 style="margin: 0; font-size: 22px;">{ders['baslik']}</h2>
         </div>
-        <div style="background: #f8f9fa; padding: 15px; border-left: 5px solid #667eea; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">📖 Ders Özeti</h3>
-            <p style="line-height: 1.7; color: #333;">{ders['ozet']}</p>
+             <div style="background: #f8f9fa; padding: 20px; border-left: 5px solid #667eea; margin-bottom: 20px; border-radius: 8px;">
+            <div style="line-height: 1.9; color: #333; white-space: pre-wrap; font-size: 14px;">{detayli_metin}</div>
         </div>
         <div style="background: #e8f8f5; padding: 15px; border-left: 5px solid #27ae60; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #2c3e50;">✅ Günün Uygulaması</h3>
@@ -435,7 +495,65 @@ def excel_mail_gonder():
         print(f"✅ Excel dersi gönderildi: {ders['baslik']}")
     except Exception as e:
         print(f"❌ Hata: {e}")
+# ============================================================
+# AI İLE DETAYLI DERS METNİ
+# ============================================================
+def ai_detayli_ders(ders):
+    """Groq AI ile dersin detaylı 800+ kelimelik metnini üretir."""
+    if not GROQ_API_KEY:
+        return f"{ders['ozet']}\n\n{ders['uygulama']}"
+    
+    try:
+        from groq import Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        prompt = f"""
+Sen deneyimli bir Excel eğitmenisin. Aşağıdaki ders bilgilerini kullanarak, ÖĞRENCİYE HİTAPEN DETAYLI bir ders metni yaz.
 
+DERS BİLGİLERİ:
+- Başlık: {ders['baslik']}
+- Kısa Özet: {ders['ozet']}
+- Uygulama Görevi: {ders['uygulama']}
+
+ÇOK ÖNEMLİ KURALLAR:
+1. Metin EN AZ 800 kelime olmalı. Kısa yazmak yasak.
+2. "Sen" diliyle yaz, samimi ve öğretici ol.
+3. Adım adım anlat. Her adımı numaralandır.
+4. Bol örnek ver. Somut sayılar ve hücre adresleri kullan.
+5. Öğrencinin sık yapacağı hataları belirt.
+6. Konuyu gerçek iş hayatıyla ilişkilendir.
+
+ŞU FORMATTA YAZ:
+
+## 🎯 Bu Derste Ne Öğreneceksin?
+(2-3 paragraf. Konuyu tanıt. Neden önemli olduğunu açıkla.)
+
+## 📖 Detaylı Anlatım
+(En az 400 kelime. Konuyu adım adım, örneklerle anlat.)
+
+## 💻 Adım Adım Uygulama
+(Uygulama görevini çok detaylı anlat. Her adımı numaralandır.)
+
+## ⚠️ Sık Yapılan 3 Hata
+(1. ... 2. ... 3. ...)
+
+## 💼 İş Hayatında Nasıl Kullanılır?
+(2-3 somut örnek.)
+
+## ✅ Kendini Test Et
+(3 soru sor. Cevaplarını altına yaz.)
+
+Türkçe yaz. Detaylı ol. Kısa kesme.
+"""
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="openai/gpt-oss-20b",
+            max_tokens=4000,
+        )
+        return chat.choices[0].message.content
+    except Exception as e:
+        print(f"AI hatası: {e}")
+        return f"{ders['ozet']}\n\n{ders['uygulama']}"
 if __name__ == "__main__":
     print("📊 Günlük Excel dersi hazırlanıyor...")
     excel_mail_gonder()
