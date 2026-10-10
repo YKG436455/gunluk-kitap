@@ -1,0 +1,38 @@
+name: Günlük Kitap Özeti
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  kitap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Kütüphaneleri kur
+        run: pip install -r requirements.txt
+      
+      - name: Kitap özeti gönder
+        run: python kitap_ozetleri.py
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+      
+      - name: İlerlemeyi kaydet
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add kitap_state.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Kitap ilerlemesi güncellendi [skip ci]"
+          git push
