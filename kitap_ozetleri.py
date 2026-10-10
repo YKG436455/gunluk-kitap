@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-📚 GÜNLÜK KİTAP ÖZETİ SİSTEMİ
-Her sabah bir kişisel gelişim kitabının özetini gönderir.
-46 kitap havuzu - her gün farklı kitap + AI yorumu
+📚 GÜNLÜK KİTAP ÖZETİ SİSTEMİ v2
++ gTTS ile sesli özet (MP3 ek)
+46 kitap havuzu - her gün farklı kitap + AI yorumu + ses dosyası
 """
 
 import os
@@ -10,7 +10,15 @@ import smtplib
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from datetime import datetime
+
+try:
+    from gtts import gTTS
+    GTTS_AKTIF = True
+except ImportError:
+    GTTS_AKTIF = False
+    print("⚠️ gTTS yüklü değil, ses dosyası oluşturulamayacak.")
 
 MAIL_USER = os.environ.get("MAIL_USER")
 MAIL_PASS = os.environ.get("MAIL_PASS")
@@ -21,7 +29,6 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 # KİTAP HAVUZU (46 Kitap)
 # ============================================================
 KITAPLAR = [
-    # ============ MÜMİN SEKMAN (8 Kitap) ============
     {
         "baslik": "Limit Sizsiniz",
         "yazar": "Mümin Sekman",
@@ -166,7 +173,6 @@ KITAPLAR = [
             "Stratejim net mi?"
         ]
     },
-    # ============ KULLANICI LİSTESİ (10 Kitap) ============
     {
         "baslik": "Etkili İnsanların 7 Alışkanlığı",
         "yazar": "Stephen R. Covey",
@@ -349,7 +355,6 @@ KITAPLAR = [
             "Bugün fark ettiğim bir şey ne oldu?"
         ]
     },
-    # ============ ÖNERİLER (7 Kitap) ============
     {
         "baslik": "Savaşçı",
         "yazar": "Doğan Cüceloğlu",
@@ -476,7 +481,6 @@ KITAPLAR = [
             "Teknolojiyi nasıl kullanıyorum?"
         ]
     },
-    # ============ YENİ EKLENEN KİTAPLAR (21 Kitap) ============
     {
         "baslik": "İrade Terbiyesi",
         "yazar": "Jules Payot (çev. Ethem Bakar)",
@@ -889,6 +893,34 @@ def gunun_kitabi():
     return kitap
 
 # ============================================================
+# SESLİ ÖZET OLUŞTURMA (gTTS)
+# ============================================================
+def sesli_ozet_olustur(kitap):
+    """Kitap özetini MP3 dosyasına çevirir."""
+    if not GTTS_AKTIF:
+        return None
+    try:
+        # Seslendirilecek metni hazırla
+        metin = f"{kitap['baslik']}. Yazar: {kitap['yazar']}. "
+        metin += f"Kitap özeti: {kitap['ozet']} "
+        metin += "Ana fikirler: "
+        for i, fikir in enumerate(kitap['ana_fikirler'], 1):
+            metin += f"{i}. {fikir} "
+        metin += "Düşünce soruları: "
+        for i, soru in enumerate(kitap['sorular'], 1):
+            metin += f"{i}. {soru} "
+        
+        # MP3 dosyası oluştur
+        dosya_adi = f"günün_kitabı.mp3"
+        tts = gTTS(text=metin, lang='tr', slow=False)
+        tts.save(dosya_adi)
+        print(f"✅ Ses dosyası oluşturuldu: {dosya_adi}")
+        return dosya_adi
+    except Exception as e:
+        print(f"❌ Ses dosyası hatası: {e}")
+        return None
+
+# ============================================================
 # AI YORUMU
 # ============================================================
 def ai_yorum(kitap):
@@ -924,7 +956,7 @@ def ai_yorum(kitap):
         return chat.choices[0].message.content
     except Exception as e:
         print(f"AI hatası: {e}")
-        return "🤖 AI yorumu şu an oluşturulamadı. Yarın tekrar denenecek."
+        return "🤖 AI yorumu şu an oluşturulamadı."
 
 # ============================================================
 # E-POSTA GÖNDER
@@ -934,6 +966,9 @@ def kitap_mail_gonder():
     kitap = gunun_kitabi()
     yorum = ai_yorum(kitap)
     
+    # Sesli özet oluştur
+    ses_dosyasi = sesli_ozet_olustur(kitap)
+    
     fikirler_html = ""
     for i, fikir in enumerate(kitap["ana_fikirler"], 1):
         fikirler_html += f'<li style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>{i}.</strong> {fikir}</li>'
@@ -942,18 +977,29 @@ def kitap_mail_gonder():
     for i, soru in enumerate(kitap["sorular"], 1):
         sorular_html += f'<li style="padding: 8px 0;"><strong>{i}.</strong> {soru}</li>'
     
+    ses_bilgi = ""
+    if ses_dosyasi:
+        ses_bilgi = '''
+        <div style="background: #e7f3ff; padding: 15px; border-left: 5px solid #3498db; margin-bottom: 20px; border-radius: 8px;">
+            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">🎧 SESLİ DİNLE</h3>
+            <p style="margin: 0; color: #333;">Bu dersin sesli özeti e-posta ektedir. 
+            <strong>günün_kitabı.mp3</strong> dosyasını indirip istediğiniz zaman dinleyebilirsiniz.</p>
+        </div>
+        '''
+    
     html_body = f'''
     <html><body style="font-family: Arial, sans-serif; max-width: 950px; margin: auto; background: #ecf0f1; padding: 20px;">
     <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
         <h1 style="margin: 0;">📚 GÜNLÜK KİTAP ÖZETİ</h1>
         <p style="margin: 8px 0 0 0;">{tarih}</p>
-        <p style="margin: 5px 0 0 0; opacity: 0.8; font-size: 12px;">Her gün bir kitap · {len(KITAPLAR)} kitap havuzu</p>
+        <p style="margin: 5px 0 0 0; opacity: 0.8; font-size: 12px;">🎧 Sesli dinleme aktif · {len(KITAPLAR)} kitap havuzu</p>
     </div>
     <div style="background: white; padding: 25px; margin-top: 15px; border-radius: 12px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
             <h2 style="margin: 0; font-size: 24px;">{kitap["baslik"]}</h2>
             <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">✍️ {kitap["yazar"]} · 📂 {kitap["kategori"]}</p>
         </div>
+        {ses_bilgi}
         <div style="background: #f8f9fa; padding: 15px; border-left: 5px solid #667eea; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #2c3e50;">📖 Kitap Özeti</h3>
             <p style="line-height: 1.7; color: #333;">{kitap["ozet"]}</p>
@@ -973,16 +1019,32 @@ def kitap_mail_gonder():
     </div>
     <div style="background: #34495e; color: white; padding: 15px; margin-top: 15px; border-radius: 12px; font-size: 11px; text-align: center;">
     Bu bülten otomatik oluşturulmuştur.<br>
-    Kitap havuzu: {len(KITAPLAR)} kitap · Her gün farklı bir kitap özeti
+    📚 {len(KITAPLAR)} kitap · 🎧 Sesli dinleme aktif
     </div>
     </body></html>
     '''
     
-    msg = MIMEMultipart('alternative')
+    msg = MIMEMultipart('mixed')
     msg['Subject'] = f"📚 Günün Kitabı: {kitap['baslik']} - {kitap['yazar']}"
     msg['From'] = MAIL_USER
     msg['To'] = MAIL_TO
-    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    
+    # HTML gövde
+    msg_alt = MIMEMultipart('alternative')
+    msg_alt.attach(MIMEText(html_body, 'html', 'utf-8'))
+    msg.attach(msg_alt)
+    
+    # MP3 eki
+    if ses_dosyasi and os.path.exists(ses_dosyasi):
+        try:
+            with open(ses_dosyasi, 'rb') as f:
+                ses_ek = MIMEApplication(f.read(), _subtype='mp3')
+                ses_ek.add_header('Content-Disposition', 'attachment', 
+                                  filename=f"gunun_kitabi_{datetime.now().strftime('%Y%m%d')}.mp3")
+                msg.attach(ses_ek)
+            print("✅ MP3 eki hazırlandı.")
+        except Exception as e:
+            print(f"MP3 eki hatası: {e}")
     
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
