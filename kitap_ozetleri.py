@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-📚 GÜNLÜK KİTAP ÖZETİ SİSTEMİ v2
-+ gTTS ile sesli özet (MP3 ek)
-46 kitap havuzu - her gün farklı kitap + AI yorumu + ses dosyası
+📚 GÜNLÜK KİTAP ÖZETİ SİSTEMİ v3
++ 1000+ kelime detaylı özet
++ 10+ dakika sesli anlatım
++ Bölüm bölüm derinlemesine analiz
+46 kitap havuzu
 """
 
 import os
@@ -893,70 +895,104 @@ def gunun_kitabi():
     return kitap
 
 # ============================================================
-# SESLİ ÖZET OLUŞTURMA (gTTS)
+# AI İLE DETAYLI ÖZET + YORUM (1000+ kelime)
 # ============================================================
-def sesli_ozet_olustur(kitap):
-    """Kitap özetini MP3 dosyasına çevirir."""
+def ai_detayli_ozet(kitap):
+    """AI ile 1000+ kelimelik detaylı kitap özeti üretir."""
+    if not GROQ_API_KEY:
+        return kitap['ozet'], "AI özeti için API anahtarı gerekli."
+    try:
+        from groq import Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        prompt = f"""
+Sen deneyimli bir kişisel gelişim koçusun ve kitap özetleri yazıyorsun. Görevin, aşağıdaki kitabı OKUYAN birisi gibi, ÇOK DETAYLI bir özet yazmak. Kullanıcı kitabı okumuş gibi hissetmeli.
+
+KİTAP BİLGİLERİ:
+- Kitap: {kitap['baslik']}
+- Yazar: {kitap['yazar']}
+- Kategori: {kitap['kategori']}
+- Kısa Özet: {kitap['ozet']}
+- Ana Fikirler: {', '.join(kitap['ana_fikirler'])}
+
+ÇOK ÖNEMLİ KURALLAR:
+1. Özet EN AZ 1000 kelime olmalı. Kısa yazmak yasak.
+2. Her bölümde derinlemesine analiz yap.
+3. Somut örnekler ver.
+4. Paragraflar uzun ve akıcı olsun.
+
+Şu formatta yaz:
+
+📖 KİTABIN DETAYLI ÖZETİ
+(Bu bölüm EN AZ 600 kelime olmalı. Kitabın ne anlattığını, yazarın temel tezini, kitabın hangi sorulara cevap aradığını, hangi kavramları ele aldığını detaylıca anlat. En az 6-7 paragraf yaz. Her paragraf 4-5 cümle içersin.)
+
+🎯 KİTABIN BÖLÜM BÖLÜM ANALİZİ
+(Bu bölüm EN AZ 300 kelime olmalı. Kitabın ana bölümlerini veya temel konularını tek tek ele al. Her konu için ayrı bir başlık at ve detaylıca açıkla. En az 4-5 alt başlık olsun.)
+
+💡 GERÇEK HAYAT UYGULAMALARI
+(Bu bölüm EN AZ 150 kelime olmalı. Bu kitaptaki fikirlerin günlük hayatta, iş hayatında ve ilişkilerde nasıl uygulanabileceğine dair 3-4 somut örnek ver.)
+
+🔑 KİTABIN EN ÖNEMLİ 5 CÜMLESİ
+(Kitabı en iyi özetleyen 5 cümle yaz. Her cümle italik ve tırnak içinde olsun.)
+
+💬 KİŞİSEL YORUM
+(Bu bölüm 100-150 kelime olmalı. Kitabın okuyucuya ne katacağını, hangi fikrinin en çok etkileyeceğini samimi bir dille yaz.)
+
+🎯 BU HAFTA SENİN İÇİN 3 SOMUT ADIM
+(Bu kitaptan ilham alarak bu hafta atılabilecek 3 somut adım yaz. Her adım net ve uygulanabilir olsun.)
+
+Türkçe, akıcı, samimi ve motive edici bir dille yaz. Kısa kesme, detaylı ol. Toplam metin 1000 kelimenin üzerinde olmalı.
+"""
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="openai/gpt-oss-20b",
+            max_tokens=4000,
+        )
+        detayli_metin = chat.choices[0].message.content
+        return detayli_metin, detayli_metin
+    except Exception as e:
+        print(f"AI hatası: {e}")
+        return kitap['ozet'], "🤖 AI özeti şu an oluşturulamadı."
+
+# ============================================================
+# SESLİ ÖZET OLUŞTURMA (10+ dakika)
+# ============================================================
+def sesli_ozet_olustur(kitap, detayli_metin):
+    """10+ dakikalık detaylı ses dosyası oluşturur."""
     if not GTTS_AKTIF:
         return None
     try:
-        # Seslendirilecek metni hazırla
-        metin = f"{kitap['baslik']}. Yazar: {kitap['yazar']}. "
-        metin += f"Kitap özeti: {kitap['ozet']} "
-        metin += "Ana fikirler: "
+        # Çok uzun ve detaylı seslendirme metni
+        metin = f"Merhaba. Bugünün kitabı: {kitap['baslik']}. "
+        metin += f"Yazar: {kitap['yazar']}. "
+        metin += f"Kategori: {kitap['kategori']}. "
+        metin += "Şimdi bu kitabın detaylı özetini dinleyelim. "
+        metin += "Rahat bir pozisyon alın, derin bir nefes alın ve dinlemeye başlayın. "
+        metin += detayli_metin
+        metin += " Şimdi bu kitabın ana fikirlerini tekrar hatırlayalım. "
         for i, fikir in enumerate(kitap['ana_fikirler'], 1):
-            metin += f"{i}. {fikir} "
-        metin += "Düşünce soruları: "
+            metin += f"{i}. ana fikir: {fikir} "
+        metin += " Ve şimdi günün düşünce soruları. Bu soruları kendinize sorun ve cevaplarını düşünün. "
         for i, soru in enumerate(kitap['sorular'], 1):
-            metin += f"{i}. {soru} "
+            metin += f"{i}. soru: {soru} "
+        metin += " Bu soruları gün içinde düşünmeye devam edin. "
+        metin += "Bugünkü dersimizin sonuna geldik. Yarın başka bir kitapla görüşmek üzere. "
+        metin += "Kendinize iyi bakın, kitapla kalın. Hoşça kalın."
         
         # MP3 dosyası oluştur
         dosya_adi = f"günün_kitabı.mp3"
         tts = gTTS(text=metin, lang='tr', slow=False)
         tts.save(dosya_adi)
+        
+        # Kaç karakter ve tahmini süre
+        karakter = len(metin)
+        tahmini_dakika = karakter / 1100  # Türkçe TTS ~1100 karakter/dakika
         print(f"✅ Ses dosyası oluşturuldu: {dosya_adi}")
+        print(f"   Karakter: {karakter}, Tahmini süre: ~{tahmini_dakika:.1f} dakika")
         return dosya_adi
     except Exception as e:
         print(f"❌ Ses dosyası hatası: {e}")
         return None
-
-# ============================================================
-# AI YORUMU
-# ============================================================
-def ai_yorum(kitap):
-    if not GROQ_API_KEY:
-        return "AI yorumu için API anahtarı gerekli."
-    try:
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        prompt = f"""
-        Sen bir kişisel gelişim koçusun. Aşağıdaki kitap özetini okuyup, 
-        okuyucuya kişisel bir yorum ve öneri yaz.
-        
-        Kitap: {kitap['baslik']}
-        Yazar: {kitap['yazar']}
-        Özet: {kitap['ozet']}
-        Ana Fikirler: {', '.join(kitap['ana_fikirler'])}
-        
-        Şu formatta yaz (en fazla 200 kelime):
-        
-        💬 KİŞİSEL YORUM:
-        [Bu kitabın sana ne anlattığını, hangi fikrinin seni en çok etkilediğini yaz]
-        
-        🎯 SANA ÖNERİM:
-        [Bu kitaptaki hangi fikri hayatına nasıl uygulayabileceğini yaz]
-        
-        Türkçe, samimi ve motive edici bir dille yaz.
-        """
-        chat = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model="openai/gpt-oss-20b",
-            max_tokens=600,
-        )
-        return chat.choices[0].message.content
-    except Exception as e:
-        print(f"AI hatası: {e}")
-        return "🤖 AI yorumu şu an oluşturulamadı."
 
 # ============================================================
 # E-POSTA GÖNDER
@@ -964,26 +1000,38 @@ def ai_yorum(kitap):
 def kitap_mail_gonder():
     tarih = datetime.now().strftime('%d.%m.%Y %A')
     kitap = gunun_kitabi()
-    yorum = ai_yorum(kitap)
+    
+    print(f"📖 Bugünün kitabı: {kitap['baslik']}")
+    print("🤖 AI detaylı özet oluşturuyor... (bu 30-60 saniye sürebilir)")
+    
+    # Detaylı AI özeti oluştur
+    detayli_ozet, yorum = ai_detayli_ozet(kitap)
+    
+    print("🎧 Ses dosyası oluşturuluyor... (bu 1-2 dakika sürebilir)")
     
     # Sesli özet oluştur
-    ses_dosyasi = sesli_ozet_olustur(kitap)
+    ses_dosyasi = sesli_ozet_olustur(kitap, detayli_ozet)
     
+    # Ana fikirler HTML
     fikirler_html = ""
     for i, fikir in enumerate(kitap["ana_fikirler"], 1):
-        fikirler_html += f'<li style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>{i}.</strong> {fikir}</li>'
+        fikirler_html += f'<li style="padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px;"><strong>{i}.</strong> {fikir}</li>'
     
+    # Sorular HTML
     sorular_html = ""
     for i, soru in enumerate(kitap["sorular"], 1):
-        sorular_html += f'<li style="padding: 8px 0;"><strong>{i}.</strong> {soru}</li>'
+        sorular_html += f'<li style="padding: 10px 0; font-size: 14px;"><strong>{i}.</strong> {soru}</li>'
     
+    # Ses bilgisi
     ses_bilgi = ""
     if ses_dosyasi:
         ses_bilgi = '''
-        <div style="background: #e7f3ff; padding: 15px; border-left: 5px solid #3498db; margin-bottom: 20px; border-radius: 8px;">
-            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">🎧 SESLİ DİNLE</h3>
-            <p style="margin: 0; color: #333;">Bu dersin sesli özeti e-posta ektedir. 
-            <strong>günün_kitabı.mp3</strong> dosyasını indirip istediğiniz zaman dinleyebilirsiniz.</p>
+        <div style="background: #e7f3ff; padding: 20px; border-left: 5px solid #3498db; margin-bottom: 20px; border-radius: 8px;">
+            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">🎧 SESLİ DİNLE (10+ dakika)</h3>
+            <p style="margin: 0; color: #333; font-size: 14px;">
+            Bu kitap özetinin <strong>tam sesli versiyonu</strong> e-posta ektedir. 
+            <strong>günün_kitabı.mp3</strong> dosyasını indirip istediğiniz zaman dinleyebilirsiniz. 
+            Arabanızda, yürürken, spor yaparken veya uyumadan önce dinleyebilirsiniz.</p>
         </div>
         '''
     
@@ -992,34 +1040,30 @@ def kitap_mail_gonder():
     <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
         <h1 style="margin: 0;">📚 GÜNLÜK KİTAP ÖZETİ</h1>
         <p style="margin: 8px 0 0 0;">{tarih}</p>
-        <p style="margin: 5px 0 0 0; opacity: 0.8; font-size: 12px;">🎧 Sesli dinleme aktif · {len(KITAPLAR)} kitap havuzu</p>
+        <p style="margin: 5px 0 0 0; opacity: 0.8; font-size: 12px;">🎧 10+ dakika sesli · 📖 1000+ kelime detaylı · {len(KITAPLAR)} kitap havuzu</p>
     </div>
     <div style="background: white; padding: 25px; margin-top: 15px; border-radius: 12px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-            <h2 style="margin: 0; font-size: 24px;">{kitap["baslik"]}</h2>
-            <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">✍️ {kitap["yazar"]} · 📂 {kitap["kategori"]}</p>
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+            <h2 style="margin: 0; font-size: 26px;">{kitap["baslik"]}</h2>
+            <p style="margin: 10px 0 0 0; font-size: 15px; opacity: 0.95;">✍️ {kitap["yazar"]} · 📂 {kitap["kategori"]}</p>
         </div>
         {ses_bilgi}
-        <div style="background: #f8f9fa; padding: 15px; border-left: 5px solid #667eea; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">📖 Kitap Özeti</h3>
-            <p style="line-height: 1.7; color: #333;">{kitap["ozet"]}</p>
+        <div style="background: #f8f9fa; padding: 20px; border-left: 5px solid #667eea; margin-bottom: 20px; border-radius: 8px;">
+            <div style="line-height: 1.9; color: #333; white-space: pre-wrap; font-size: 14px;">{detayli_ozet}</div>
         </div>
-        <div style="background: #e8f8f5; padding: 15px; border-left: 5px solid #27ae60; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">🎯 Ana Fikirler</h3>
+        <div style="background: #e8f8f5; padding: 20px; border-left: 5px solid #27ae60; margin-bottom: 20px; border-radius: 8px;">
+            <h3 style="margin: 0 0 15px 0; color: #2c3e50;">🎯 ANA FİKİRLER</h3>
             <ul style="margin: 0; padding-left: 20px;">{fikirler_html}</ul>
         </div>
-        <div style="background: #fef5e7; padding: 15px; border-left: 5px solid #f39c12; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">❓ Düşünce Soruları</h3>
+        <div style="background: #fef5e7; padding: 20px; border-left: 5px solid #f39c12; margin-bottom: 20px; border-radius: 8px;">
+            <h3 style="margin: 0 0 15px 0; color: #2c3e50;">❓ DÜŞÜNCE SORULARI</h3>
             <ul style="margin: 0; padding-left: 20px;">{sorular_html}</ul>
         </div>
-        <div style="background: #f5eef8; padding: 15px; border-left: 5px solid #9b59b6; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #2c3e50;">💬 Kişisel Yorum ve Öneri</h3>
-            <div style="white-space: pre-wrap; line-height: 1.7;">{yorum}</div>
-        </div>
     </div>
-    <div style="background: #34495e; color: white; padding: 15px; margin-top: 15px; border-radius: 12px; font-size: 11px; text-align: center;">
+    <div style="background: #34495e; color: white; padding: 20px; margin-top: 15px; border-radius: 12px; font-size: 12px; text-align: center;">
     Bu bülten otomatik oluşturulmuştur.<br>
-    📚 {len(KITAPLAR)} kitap · 🎧 Sesli dinleme aktif
+    📚 {len(KITAPLAR)} kitap havuzu · 🎧 10+ dakika ses · 📖 1000+ kelime özet<br>
+    <strong>İpucu:</strong> Ses dosyasını akşam yürürken veya uyumadan önce dinleyin.
     </div>
     </body></html>
     '''
