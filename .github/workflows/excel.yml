@@ -18,12 +18,16 @@ jobs:
         with:
           python-version: '3.11'
       
+      - name: Kütüphaneleri kur
+        run: pip install -r requirements.txt
+      
       - name: Excel dersi gönder
         run: python excel_dersleri.py
         env:
           MAIL_USER: ${{ secrets.MAIL_USER }}
           MAIL_PASS: ${{ secrets.MAIL_PASS }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       
       - name: İlerlemeyi kaydet
         run: |
